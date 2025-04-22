@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Multimodal Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>PDF Multimodal Search</h1>
+    
+    <div class="container">
+        <div class="uploader">
+            <h2>Upload PDF</h2>
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="pdf-file">Select PDF File:</label>
+                    <input type="file" id="pdf-file" name="file" accept=".pdf">
+                </div>
+                <button type="submit">Upload and Index</button>
+            </form>
+            <div id="upload-status" class="status"></div>
+            <div id="upload-loading" class="loading">
+                <p>Processing PDF. This might take a few moments...</p>
+            </div>
+        </div>
+        
+        <div class="searcher">
+            <h2>Search PDF</h2>
+            
+            <div class="tab-buttons">
+                <button class="tab-button active" data-tab="text-search">Text Search</button>
+                <button class="tab-button" data-tab="image-search">Image Search</button>
+            </div>
+            
+            <div id="text-search" class="tab-content active">
+                <form id="text-search-form">
+                    <div class="form-group">
+                        <label for="text-query">Search Query:</label>
+                        <input type="text" id="text-query" name="query" placeholder="Enter your search query...">
+                    </div>
+                    <div class="form-group">
+                        <label for="text-limit">Result Limit:</label>
+                        <input type="number" id="text-limit" name="limit" value="3" min="1" max="10">
+                    </div>
+                    <button type="submit">Search</button>
+                </form>
+            </div>
+            
+            <div id="image-search" class="tab-content">
+                <form id="image-search-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="image-file">Select Image File:</label>
+                        <input type="file" id="image-file" name="file" accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="image-limit">Result Limit:</label>
+                        <input type="number" id="image-limit" name="limit" value="3" min="1" max="10">
+                    </div>
+                    <button type="submit">Search</button>
+                </form>
+            </div>
+            
+            <div id="search-status" class="status"></div>
+            <div id="search-loading" class="loading">
+                <p>Searching. Please wait...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="results-container"></div>
+    
+    <script>
+        // Tab functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and tabs
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                
+                // Add active class to clicked button and corresponding tab
+                button.classList.add('active');
+                document.getElementById(button.dataset.tab).classList.add('active');
+            });
+        });
+        
+        // Upload form submission
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            const fileInput = document.getElementById('pdf-file');
+            
+            // Validate file selection
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showStatus('upload-status', 'Please select a PDF file to upload.', 'error');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('upload-loading').style.display = 'block';
+            document.getElementById('upload-status').style.display = 'none';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus('upload-status', `${result.message} (${result.num_pages} pages)`, 'success');
+                    // Reset form
+                    form.reset();
+                } else {
+                    showStatus('upload-status', result.error || 'Failed to upload PDF', 'error');
+                }
+            } catch (error) {
+                showStatus('upload-status', 'Error uploading file: ' + error.message, 'error');
+            } finally {
+                document.getElementById('upload-loading').style.display = 'none';
+            }
+        });
+        
+        // Text search form submission
+        document.getElementById('text-search-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const query = document.getElementById('text-query').value;
+            const limit = document.getElementById('text-limit').value;
+            
+            if (!query) {
+                showStatus('search-status', 'Please enter a search query.', 'error');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('search-loading').style.display = 'block';
+            document.getElementById('search-status').style.display = 'none';
+            
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query_type: 'text',
+                        query: query,
+                        limit: limit
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayResults(result.results);
+                    if (result.results.length === 0) {
+                        showStatus('search-status', 'No results found.', 'success');
+                    }
+                } else {
+                    showStatus('search-status', result.error || 'Failed to search', 'error');
+                }
+            } catch (error) {
+                showStatus('search-status', 'Error searching: ' + error.message, 'error');
+            } finally {
+                document.getElementById('search-loading').style.display = 'none';
+            }
+        });
+        
+        // Image search form submission
+        document.getElementById('image-search-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            const fileInput = document.getElementById('image-file');
+            
+            // Validate file selection
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showStatus('search-status', 'Please select an image file to search with.', 'error');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('search-loading').style.display = 'block';
+            document.getElementById('search-status').style.display = 'none';
+            
+            try {
+                const response = await fetch('/search-image', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayResults(result.results);
+                    if (result.results.length === 0) {
+                        showStatus('search-status', 'No results found.', 'success');
+                    }
+                } else {
+                    showStatus('search-status', result.error || 'Failed to search', 'error');
+                }
+            } catch (error) {
+                showStatus('search-status', 'Error searching: ' + error.message, 'error');
+            } finally {
+                document.getElementById('search-loading').style.display = 'none';
+            }
+        });
+        
+        // Display search results
+        function displayResults(results) {
+            const container = document.getElementById('results-container');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<p>No results found.</p>';
+                return;
+            }
+            
+            let html = '<h2 class="results-header">Search Results</h2>';
+            
+            results.forEach((result, index) => {
+                html += `
+                <div class="page-preview">
+                    <div class="page-content">
+                        ${result.image_url ? `
+                        <div class="page-image">
+                            <img src="${result.image_url}" alt="Page ${result.page_num}">
+                        </div>
+                        ` : ''}
+                        <div class="page-text">
+                            <h3>Page ${result.page_num} (Score: ${result.score.toFixed(2)})</h3>
+                            <pre>${result.text}</pre>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Show status message
+        function showStatus(elementId, message, type) {
+            const statusElement = document.getElementById(elementId);
+            statusElement.textContent = message;
+            statusElement.className = `status ${type}`;
+            statusElement.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

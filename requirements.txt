@@ -1,0 +1,11 @@
+qdrant-client
+llama-index
+llama-index-embeddings-huggingface
+transformers
+pdf2image
+PyPDF2
+pillow
+flask
+tqdm
+torch
+numpy
