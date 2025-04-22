@@ -14,7 +14,6 @@ class PDFProcessor:
         self.image_dir = image_dir
         self.temp_dir = temp_dir
         
-        # Ensure directories exist
         os.makedirs(pdf_dir, exist_ok=True)
         os.makedirs(image_dir, exist_ok=True)
         os.makedirs(temp_dir, exist_ok=True)
@@ -26,11 +25,9 @@ class PDFProcessor:
         
         pdf_path = os.path.join(self.pdf_dir, filename)
         
-        # If file_upload is a file-like object
         if hasattr(file_upload, 'read'):
             with open(pdf_path, 'wb') as f:
                 f.write(file_upload.read())
-        # If file_upload is a path
         else:
             shutil.copy(file_upload, pdf_path)
             
@@ -46,7 +43,7 @@ class PDFProcessor:
                 page = pdf_reader.pages[page_num]
                 text = page.extract_text()
                 page_texts.append({
-                    "page_num": page_num + 1,  # 1-based page numbering
+                    "page_num": page_num + 1,
                     "text": text
                 })
         
@@ -54,42 +51,48 @@ class PDFProcessor:
     
     def convert_pdf_to_images(self, pdf_path, dpi=200):
         """Convert PDF pages to images."""
-        # Generate a unique identifier for this PDF
         pdf_id = os.path.splitext(os.path.basename(pdf_path))[0]
         
-        # Path to save images
         image_paths = []
         
-        # Convert PDF to images
         with tempfile.TemporaryDirectory() as temp_path:
             images = convert_from_path(pdf_path, dpi=dpi, output_folder=temp_path)
             
             for i, image in enumerate(images):
-                # Save the image
                 image_filename = f"{pdf_id}_page_{i+1}.png"
                 image_path = os.path.join(self.image_dir, image_filename)
                 image.save(image_path, "PNG")
                 
                 image_paths.append({
-                    "page_num": i + 1,  # 1-based page numbering
+                    "page_num": i + 1,
                     "image_path": image_path
                 })
         
         return image_paths
     
+    def clear_images_directory(self):
+        """Clear all files from the images directory."""
+        for file in os.listdir(self.image_dir):
+            file_path = os.path.join(self.image_dir, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print(f"Error: Failed to delete {file_path}. Reason: {e}")
+
     def process_pdf(self, pdf_path):
         """Process a PDF: extract text and convert to images."""
         print(f"Processing PDF: {pdf_path}")
         
-        # Extract text from PDF
+        print("Clearing images directory...")
+        self.clear_images_directory()
+        
         print("Extracting text...")
         page_texts = self.extract_text_from_pdf(pdf_path)
         
-        # Convert PDF to images
         print("Converting pages to images...")
         page_images = self.convert_pdf_to_images(pdf_path)
         
-        # Combine text and image information
         pages = []
         for text_info, image_info in zip(page_texts, page_images):
             if text_info["page_num"] != image_info["page_num"]:

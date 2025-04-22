@@ -1,4 +1,3 @@
-# clip_embedder.py
 from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
 import torch
