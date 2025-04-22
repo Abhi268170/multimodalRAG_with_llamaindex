@@ -3,17 +3,15 @@ from qdrant_client import QdrantClient, models
 import numpy as np
 import os
 from PIL import Image
+from clip_embedder import CLIPEmbedder
+
 
 class MultimodalSearch:
     def __init__(self, collection_name="pdf-search", qdrant_url="http://localhost:6333/"):
         """Initialize embedding model and vector database."""
         # Initialize embedding model
         print("Initializing embedding model...")
-        self.model = HuggingFaceEmbedding(
-            model_name="llamaindex/vdr-2b-multi-v1",
-            device="cpu",  # Use "mps" for Mac or "cuda" for Nvidia GPUs
-            trust_remote_code=True,
-        )
+        self.model = CLIPEmbedder(device="cpu")
         
         # Initialize Qdrant client
         print(f"Connecting to Qdrant at {qdrant_url}...")
