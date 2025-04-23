@@ -141,3 +141,10 @@ The project relies on the following key libraries, listed in `requirements.txt`:
 *   Enhance the Web UI with pagination, sorting, and more detailed result information.
 *   Explore other multimodal embedding models.
 *   Implement a mechanism to delete specific indexed PDFs from Qdrant.
+
+## Documentation
+
+For more in-depth information about the project:
+
+*   **Technical Documentation:** [Detailed technical documentation](docs/technical_documentation.md) - Provides a detailed explanation of the architecture, core concepts, and implementation details of each module.
+*   **User Documentation:** [Simple user guide](docs/user_documentation.md) - A simple guide for users explaining how to upload PDFs and perform searches using both the Command Line Interface (CLI) and the Web User Interface (Web UI).
